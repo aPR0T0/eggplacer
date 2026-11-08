@@ -100,7 +100,7 @@ details summary { cursor: pointer; color: var(--text-secondary); margin-top: 8px
   </div>
   <section class="kpis" id="kpis"></section>
   <section class="meters">
-    <div class="card meter"><div class="row"><span>Time budget (6 h)</span><span id="tbText"></span></div><div class="bar"><div id="tbBar" style="width:0"></div></div></div>
+    <div class="card meter"><div class="row"><span id="tbLabel">Time budget</span><span id="tbText"></span></div><div class="bar"><div id="tbBar" style="width:0"></div></div></div>
     <div class="card meter"><div class="row"><span>Estimated GCP spend</span><span id="spText"></span></div><div class="bar"><div id="spBar" style="width:0"></div></div></div>
   </section>
   <section class="charts">
@@ -241,7 +241,8 @@ function render() {
   $("err").style.display = S.error ? "block" : "none"; $("err").textContent = S.error ? `Last fetch failed: ${S.error} (showing the previous data)` : "";
   // KPIs
   const k = $("kpis"); k.textContent = "";
-  k.appendChild(tile("Step", (last.step || 0).toLocaleString(), t.est_final_step ? `of about ${t.est_final_step.toLocaleString()} at the 6 h mark` : ""));
+  k.appendChild(tile("Step", (last.step || 0).toLocaleString(), t.est_final_step ?
+    (t.stop_step ? `stopping at ${t.stop_step.toLocaleString()}` : `of about ${t.est_final_step.toLocaleString()} at the ${t.budget_hours} h mark`) : ""));
   if (evals.length) {
     const v = evals[evals.length - 1], p = evals[evals.length - 2];
     const dv = p ? v.val_loss_ema - p.val_loss_ema : null;
@@ -250,11 +251,12 @@ function render() {
   }
   k.appendChild(tile("Training loss", last.loss != null ? last.loss.toFixed(4) : "—", "average of the last 500 steps"));
   k.appendChild(tile("Speed", t.rate ? `${t.rate.toFixed(2)} steps/s` : "—", t.rate ? `${Math.round(t.rate * 64).toLocaleString()} noisy layouts/s` : ""));
-  if (t.end) k.appendChild(tile("Time left", fmtDur(t.end - Date.now() / 1000), `budget ends about ${fmtTime(t.end)}`));
+  if (t.end) k.appendChild(tile("Time left", fmtDur(t.end - Date.now() / 1000), `${t.stop_step ? "stop" : "budget ends"} about ${fmtTime(t.end)}`));
   if (S.spend) k.appendChild(tile("Spend so far", `$${S.spend.spent.toFixed(2)}`, `worst case $${S.spend.worst.toFixed(2)} of $${S.spend.cap.toFixed(0)} cap`));
   // meters
   if (t.start) {
-    const frac = Math.min(1, (Date.now() / 1000 - t.start) / (t.budget_hours * 3600));
+    const frac = Math.min(1, (Date.now() / 1000 - t.start) / (t.end - t.start));
+    $("tbLabel").textContent = t.stop_step ? `Progress to step ${t.stop_step.toLocaleString()}` : `Time budget (${t.budget_hours} h)`;
     $("tbBar").style.width = (frac * 100).toFixed(1) + "%";
     $("tbText").textContent = ""; const b = el("b", {}, `${(frac * 100).toFixed(0)}%`); $("tbText").append(b, ` · started ${fmtTime(t.start)}, ends ~${fmtTime(t.end)}`);
   }

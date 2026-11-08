@@ -117,9 +117,13 @@ def poll(args):
             last = run["records"][-1]["step"]
             if start:
                 end = start + args.budget_hours * 3600
+                final = int(run["resume"] + rate * args.budget_hours * 3600)
+                if args.stop_step and args.stop_step < final:  # stopping early at a fixed step
+                    end = start + (args.stop_step - run["resume"]) / rate
+                    final = args.stop_step
                 timing = dict(start=start, end=end, now=time.time(), rate=rate, last_step=last,
-                              est_final_step=int(run["resume"] + rate * args.budget_hours * 3600),
-                              budget_hours=args.budget_hours)
+                              est_final_step=final, budget_hours=args.budget_hours,
+                              stop_step=args.stop_step or None)
         with LOCK:
             STATE.update(updated=time.time(), error=None, runs=runs, events=events, checkpoints=cks, vms=vm,
                          spend=sp, timing=timing, run=args.run, vm=args.vm, bucket=BUCKET)
@@ -160,6 +164,7 @@ def main():
     ap.add_argument("--port", type=int, default=8765); ap.add_argument("--vm", default="egg-gpu-train")
     ap.add_argument("--run", default="full"); ap.add_argument("--budget-hours", type=float, default=6.0)
     ap.add_argument("--interval", type=int, default=60)
+    ap.add_argument("--stop-step", type=int, default=0, help="training will be stopped at this step (0 = time budget)")
     ap.add_argument("--bucket", default=None, help="gs://... (default: $BUCKET)")
     ap.add_argument("--ledger", default=None, help="cost ledger json (default: $EGG_LEDGER or gcp/../logs)")
     a = ap.parse_args()
