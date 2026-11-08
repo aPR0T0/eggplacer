@@ -1,0 +1,17 @@
+# fetched / generated
+third_party/
+out/
+data/
+ckpt/
+runs/
+logs/
+*.npz
+*.pt
+# python
+__pycache__/
+*.pyc
+.venv/
+# KiCad per-user state
+*.kicad_prl
+*.lck
+*-backups/

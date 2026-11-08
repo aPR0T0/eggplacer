@@ -1,0 +1,99 @@
+{
+  "_comment": "Example board config. Every key is explained in GUIDE.md step 3. Paths are relative to this file.",
+  "board": "../../myboard_egg/myboard.kicad_pcb",
+  "layers": 2,
+  "outline": {
+    "shape": "rect",
+    "aspect": "free",
+    "aspect_candidates": [
+      1.0,
+      1.15,
+      1.3,
+      1.5,
+      1.75,
+      2.0
+    ],
+    "corner_radius": 0.5,
+    "max_w": null,
+    "max_h": null
+  },
+  "clearance": {
+    "edge": 0.2,
+    "courtyard": 0.05,
+    "hole_both_sides": 0.25
+  },
+  "mounting_holes": {
+    "refs": [
+      "H1",
+      "H2",
+      "H3",
+      "H4"
+    ],
+    "mode": "corners",
+    "edge_gap": 0.2
+  },
+  "fixed_abs": [
+    "U1"
+  ],
+  "edge_parts": {
+    "J1": {
+      "mouth": "-x",
+      "edge_line": -5.0
+    },
+    "J2": {
+      "mouth": "+y",
+      "edge_line": "courtyard"
+    }
+  },
+  "sides": {
+    "allow_bottom_kinds": [
+      "R",
+      "C",
+      "L"
+    ],
+    "bottom_penalty": 10.0
+  },
+  "rotation": {
+    "allowed": [
+      0,
+      90,
+      180,
+      270
+    ]
+  },
+  "decoupling": {
+    "cap_kind": "C",
+    "ic_kinds": [
+      "U"
+    ],
+    "gnd_nets": [
+      "GND"
+    ]
+  },
+  "net_weights": {
+    "gnd_weight": 0.15,
+    "power_nets": [
+      "+3V3",
+      "+5V",
+      "+12V",
+      "VDDLDO"
+    ],
+    "power_weight": 0.5,
+    "fanout_cap": 12
+  },
+  "fab": {
+    "track_min": 0.1,
+    "space_min": 0.1,
+    "via_drill": 0.3,
+    "via_diameter": 0.5,
+    "assembly": "double-sided"
+  },
+  "thermal": null,
+  "dru": "jlcpcb_2layer.kicad_dru",
+  "routing": {
+    "router": "1.9",
+    "gnd": "pour",
+    "timeout": 2700,
+    "netclass_overrides": {}
+  }
+}

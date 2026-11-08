@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EGGPlacer training</title>
+<style>
+.viz-root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface-1: #fcfcfb; --text-primary: #0b0b0b; --text-secondary: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,0.10);
+  --series-1: #2a78d6; --series-2: #eb6834; --deemph: #c3c2b7;
+  --good: #0ca30c; --good-text: #006300; --serious: #ec835a; --critical: #d03b3b; --warning: #fab219;
+  --track: #cde2fb; --fill: #2a78d6;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) .viz-root {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface-1: #1a1a19; --text-primary: #ffffff; --text-secondary: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+    --series-1: #3987e5; --series-2: #d95926; --deemph: #52514e; --good-text: #0ca30c;
+    --track: #184f95; --fill: #3987e5;
+  }
+}
+:root[data-theme="dark"] .viz-root {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface-1: #1a1a19; --text-primary: #ffffff; --text-secondary: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+  --series-1: #3987e5; --series-2: #d95926; --deemph: #52514e; --good-text: #0ca30c;
+  --track: #184f95; --fill: #3987e5;
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+.viz-root { background: var(--page); color: var(--text-primary); min-height: 100vh;
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; padding: 24px 28px 40px; }
+header { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+h1 { font-size: 20px; font-weight: 600; margin: 0; }
+.sub { color: var(--text-secondary); }
+.muted { color: var(--muted); }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface-1); font-size: 13px; }
+.pill .dot { width: 8px; height: 8px; border-radius: 50%; }
+.controls { display: flex; gap: 8px; align-items: center; margin: 0 0 16px; }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--surface-1); }
+.seg button { border: 0; background: none; color: var(--text-secondary); padding: 6px 12px; font: inherit; cursor: pointer; }
+.seg button[aria-pressed="true"] { color: var(--text-primary); font-weight: 600; background: var(--border); }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+.tile .label { color: var(--text-secondary); font-size: 13px; }
+.tile .value { font-size: 26px; font-weight: 600; margin-top: 2px; }
+.tile .delta { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
+.tile .delta.good { color: var(--good-text); }
+.meters { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.meter .row { display: flex; justify-content: space-between; color: var(--text-secondary); font-size: 13px; margin-bottom: 8px; }
+.meter .row b { color: var(--text-primary); font-weight: 600; }
+.bar { height: 8px; border-radius: 4px; background: var(--track); overflow: hidden; }
+.bar > div { height: 100%; border-radius: 4px; background: var(--fill); }
+.charts { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; margin-bottom: 16px; }
+.chart h2 { font-size: 15px; font-weight: 600; margin: 0; }
+.chart .note { color: var(--text-secondary); font-size: 13px; margin: 2px 0 8px; }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--text-secondary); margin-bottom: 4px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { display: inline-block; width: 16px; height: 2px; border-radius: 1px; }
+.plot { position: relative; }
+.plot svg { display: block; width: 100%; overflow: visible; }
+.tip { position: absolute; pointer-events: none; background: var(--surface-1); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 10px; font-size: 13px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); display: none; min-width: 150px; }
+.tip .t { color: var(--muted); margin-bottom: 4px; }
+.tip .r { display: flex; align-items: center; gap: 8px; }
+.tip .r i { width: 12px; height: 2px; border-radius: 1px; display: inline-block; }
+.tip .r b { font-weight: 600; min-width: 52px; font-variant-numeric: tabular-nums; }
+.lower { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--grid); }
+th { color: var(--text-secondary); font-weight: 500; }
+td.num { font-variant-numeric: tabular-nums; text-align: right; }
+th.num { text-align: right; }
+ul.events { margin: 0; padding: 0; list-style: none; font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--text-secondary); }
+ul.events li { padding: 2px 0; border-bottom: 1px solid var(--grid); overflow-wrap: anywhere; }
+details summary { cursor: pointer; color: var(--text-secondary); margin-top: 8px; }
+.err { background: var(--surface-1); border: 1px solid var(--critical); border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; display: none; }
+.stale { opacity: 0.55; transition: opacity 0.2s; }
+@media (max-width: 900px) { .charts, .lower, .meters { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="viz-root">
+  <header>
+    <h1>EGGPlacer denoiser training</h1>
+    <span class="pill" id="vmPill"><span class="dot"></span><span id="vmText">loading…</span></span>
+    <span class="muted" id="updated"></span>
+  </header>
+  <div class="err" id="err"></div>
+  <div class="controls">
+    <span class="sub">Show</span>
+    <div class="seg" role="group" aria-label="Runs shown">
+      <button id="btnFull" aria-pressed="true">Full run</button>
+      <button id="btnBoth" aria-pressed="false">Small + full run</button>
+    </div>
+  </div>
+  <section class="kpis" id="kpis"></section>
+  <section class="meters">
+    <div class="card meter"><div class="row"><span>Time budget (6 h)</span><span id="tbText"></span></div><div class="bar"><div id="tbBar" style="width:0"></div></div></div>
+    <div class="card meter"><div class="row"><span>Estimated GCP spend</span><span id="spText"></span></div><div class="bar"><div id="spBar" style="width:0"></div></div></div>
+  </section>
+  <section class="charts">
+    <div class="card chart">
+      <h2>Loss (noise-prediction MSE)</h2>
+      <div class="note" id="lossNote">Lower is better. Validation uses the EMA weights on held-out circuits.</div>
+      <div class="legend" id="lossLegend"></div>
+      <div class="plot" id="lossPlot"></div>
+      <details><summary>Data table: validation checks</summary><table id="evalTable"></table></details>
+    </div>
+    <div class="card chart">
+      <h2>Training speed (steps/s)</h2>
+      <div class="note">One step = 4 circuits × 16 noise draws (64 samples).</div>
+      <div class="plot" id="speedPlot"></div>
+    </div>
+  </section>
+  <section class="lower">
+    <div class="card"><h2 style="font-size:15px;margin:0 0 8px">Checkpoints in GCS</h2><table id="ckTable"></table></div>
+    <div class="card"><h2 style="font-size:15px;margin:0 0 8px">Recent job events</h2><ul class="events" id="events"></ul></div>
+  </section>
+</div>
+<script>
+"use strict";
+let STATE = null, SHOW_BOTH = false;
+const $ = (id) => document.getElementById(id);
+const css = (v) => getComputedStyle(document.querySelector(".viz-root")).getPropertyValue(v).trim();
+const fmtStep = (s) => s >= 1000 ? (s / 1000).toFixed(s % 1000 ? 1 : 0).replace(/\.0$/, "") + "k" : String(s);
+const fmtTime = (t) => new Date(t * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+const fmtDur = (s) => { s = Math.max(0, s); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60); return h ? `${h} h ${m} min` : `${m} min`; };
+const el = (tag, attrs = {}, text) => { const e = document.createElement(tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; return e; };
+const svgEl = (tag, attrs = {}) => { const e = document.createElementNS("http://www.w3.org/2000/svg", tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
+
+function niceTicks(lo, hi, n = 5) {
+  const span = hi - lo || 1, raw = span / n, mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= raw);
+  const t = []; for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-12; v += step) t.push(+v.toFixed(10));
+  return { ticks: t, step };
+}
+
+/* line chart: series [{name, color, pts:[[x,y]], dots, deemph}], annotations [{x,label}] */
+function lineChart(host, { series, annotations = [], height = 260, yFmt = (v) => v.toFixed(3), endLabels = true }) {
+  host.textContent = "";
+  const W = Math.max(320, host.clientWidth), H = height, m = { l: 48, r: endLabels ? 92 : 16, t: 10, b: 26 };
+  const all = series.flatMap(s => s.pts);
+  if (!all.length) { host.appendChild(el("div", { class: "muted" }, "No data yet")); return; }
+  let x0 = Math.min(...all.map(p => p[0])), x1 = Math.max(...all.map(p => p[0]));
+  let y0 = Math.min(...all.map(p => p[1])), y1 = Math.max(...all.map(p => p[1]));
+  const pad = (y1 - y0) * 0.12 || 0.01; y0 -= pad; y1 += pad;
+  const yt = niceTicks(y0, y1, 5); y0 = Math.min(y0, yt.ticks[0]); y1 = Math.max(y1, yt.ticks[yt.ticks.length - 1]);
+  const X = (v) => m.l + (v - x0) / ((x1 - x0) || 1) * (W - m.l - m.r);
+  const Y = (v) => m.t + (1 - (v - y0) / ((y1 - y0) || 1)) * (H - m.t - m.b);
+  const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, height: H, role: "img" });
+  const muted = css("--muted"), grid = css("--grid"), axis = css("--axis"), surface = css("--surface-1");
+  for (const v of yt.ticks) {
+    if (v < y0 - 1e-12 || v > y1 + 1e-12) continue;
+    svg.appendChild(svgEl("line", { x1: m.l, x2: W - m.r, y1: Y(v), y2: Y(v), stroke: grid, "stroke-width": 1 }));
+    const t = svgEl("text", { x: m.l - 8, y: Y(v) + 4, "text-anchor": "end", fill: muted, "font-size": 11 }); t.textContent = yFmt(v); svg.appendChild(t);
+  }
+  const xt = niceTicks(x0, x1, Math.max(3, Math.floor((W - m.l - m.r) / 90)));
+  for (const v of xt.ticks) {
+    const t = svgEl("text", { x: X(v), y: H - 6, "text-anchor": "middle", fill: muted, "font-size": 11, "font-variant-numeric": "tabular-nums" });
+    t.textContent = fmtStep(v); svg.appendChild(t);
+  }
+  svg.appendChild(svgEl("line", { x1: m.l, x2: W - m.r, y1: H - m.b, y2: H - m.b, stroke: axis, "stroke-width": 1 }));
+  const xl = svgEl("text", { x: m.l - 8, y: H - 6, "text-anchor": "end", fill: muted, "font-size": 11 }); xl.textContent = "step"; svg.appendChild(xl);
+  for (const a of annotations) {
+    if (a.x < x0 || a.x > x1) continue;
+    svg.appendChild(svgEl("line", { x1: X(a.x), x2: X(a.x), y1: m.t, y2: H - m.b, stroke: axis, "stroke-width": 1 }));
+    const t = svgEl("text", { x: X(a.x) + 6, y: m.t + 12, fill: css("--text-secondary"), "font-size": 11 }); t.textContent = a.label; svg.appendChild(t);
+  }
+  for (const s of series) {
+    if (!s.pts.length) continue;
+    const d = s.pts.map((p, i) => `${i ? "L" : "M"}${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join("");
+    svg.appendChild(svgEl("path", { d, fill: "none", stroke: s.color, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+    if (s.dots) for (const p of s.pts) svg.appendChild(svgEl("circle", { cx: X(p[0]), cy: Y(p[1]), r: 4, fill: s.color, stroke: surface, "stroke-width": 2 }));
+  }
+  // direct end labels for highlighted series, only if they don't collide
+  if (endLabels) {
+    const ends = series.filter(s => !s.deemph && s.pts.length).map(s => ({ s, p: s.pts[s.pts.length - 1] }));
+    const ys = ends.map(e => Y(e.p[1]));
+    const clash = ys.some((y, i) => ys.some((y2, j) => i !== j && Math.abs(y - y2) < 15));
+    if (!clash) for (const e of ends) {
+      svg.appendChild(svgEl("circle", { cx: X(e.p[0]), cy: Y(e.p[1]), r: 4, fill: e.s.color, stroke: surface, "stroke-width": 2 }));
+      const t = svgEl("text", { x: X(e.p[0]) + 9, y: Y(e.p[1]) + 4, fill: css("--text-primary"), "font-size": 12 });
+      t.textContent = `${e.s.short} ${yFmt(e.p[1])}`; svg.appendChild(t);
+    }
+  }
+  // crosshair + tooltip (snaps to nearest step; lists every series)
+  const cross = svgEl("line", { y1: m.t, y2: H - m.b, stroke: muted, "stroke-width": 1, visibility: "hidden" });
+  svg.appendChild(cross);
+  const hit = svgEl("rect", { x: m.l, y: 0, width: W - m.l - m.r, height: H, fill: "transparent", tabindex: 0 });
+  svg.appendChild(hit);
+  host.appendChild(svg);
+  const tip = el("div", { class: "tip" }); host.appendChild(tip);
+  const xs = [...new Set(all.map(p => p[0]))].sort((a, b) => a - b);
+  const show = (px) => {
+    const xv = x0 + (px - m.l) / (W - m.l - m.r) * (x1 - x0);
+    let best = xs[0]; for (const v of xs) if (Math.abs(v - xv) < Math.abs(best - xv)) best = v;
+    cross.setAttribute("x1", X(best)); cross.setAttribute("x2", X(best)); cross.setAttribute("visibility", "visible");
+    tip.textContent = ""; tip.appendChild(el("div", { class: "t" }, `step ${best.toLocaleString()}`));
+    for (const s of series) {
+      const p = s.pts.find(q => q[0] === best);
+      const row = el("div", { class: "r" }); const k = el("i"); k.style.background = s.color; row.appendChild(k);
+      row.appendChild(el("b", {}, p ? yFmt(p[1]) : "—")); row.appendChild(el("span", { class: "muted" }, s.name)); tip.appendChild(row);
+    }
+    tip.style.display = "block";
+    const left = Math.min(Math.max(0, X(best) / W * host.clientWidth + 12), host.clientWidth - tip.offsetWidth);
+    tip.style.left = left + "px"; tip.style.top = "8px";
+  };
+  hit.addEventListener("pointermove", (ev) => { const r = svg.getBoundingClientRect(); show((ev.clientX - r.left) / r.width * W); });
+  hit.addEventListener("pointerleave", () => { tip.style.display = "none"; cross.setAttribute("visibility", "hidden"); });
+  hit.addEventListener("focus", () => show(W - m.r));
+  hit.addEventListener("blur", () => { tip.style.display = "none"; cross.setAttribute("visibility", "hidden"); });
+}
+
+function tile(label, value, delta, good) {
+  const d = el("div", { class: "card tile" });
+  d.appendChild(el("div", { class: "label" }, label)); d.appendChild(el("div", { class: "value" }, value));
+  if (delta) d.appendChild(el("div", { class: "delta" + (good ? " good" : "") }, delta));
+  return d;
+}
+
+function render() {
+  const S = STATE; if (!S || !S.runs) return;
+  const full = S.runs.find(r => r.name === S.run) || S.runs[S.runs.length - 1];
+  const small = S.runs.find(r => r.name === "small");
+  const recs = full ? full.records : [];
+  const last = recs[recs.length - 1] || {};
+  const evals = recs.filter(r => r.val_loss_ema != null);
+  const t = S.timing || {};
+  // header
+  const vm = (S.vms || []).find(v => v.name === S.vm);
+  const status = vm ? vm.status : "DELETED";
+  const color = status === "RUNNING" ? css("--good") : (status === "DELETED" ? css("--muted") : css("--serious"));
+  $("vmPill").querySelector(".dot").style.background = color;
+  $("vmText").textContent = `${S.vm}: ${status === "RUNNING" ? "running" : status.toLowerCase()}${vm ? " · " + vm.machine + " (L4) · " + vm.zone : ""}`;
+  $("updated").textContent = S.updated ? `data fetched ${fmtTime(S.updated)} · refreshes every 60 s` : "";
+  $("err").style.display = S.error ? "block" : "none"; $("err").textContent = S.error ? `Last fetch failed: ${S.error} (showing the previous data)` : "";
+  // KPIs
+  const k = $("kpis"); k.textContent = "";
+  k.appendChild(tile("Step", (last.step || 0).toLocaleString(), t.est_final_step ? `of about ${t.est_final_step.toLocaleString()} at the 6 h mark` : ""));
+  if (evals.length) {
+    const v = evals[evals.length - 1], p = evals[evals.length - 2];
+    const dv = p ? v.val_loss_ema - p.val_loss_ema : null;
+    k.appendChild(tile("Validation loss (EMA)", v.val_loss_ema.toFixed(4),
+      dv == null ? `at step ${v.step.toLocaleString()}` : `${dv < 0 ? "▼" : "▲"} ${Math.abs(dv).toFixed(4)} vs step ${p.step.toLocaleString()}`, dv != null && dv < 0));
+  }
+  k.appendChild(tile("Training loss", last.loss != null ? last.loss.toFixed(4) : "—", "average of the last 500 steps"));
+  k.appendChild(tile("Speed", t.rate ? `${t.rate.toFixed(2)} steps/s` : "—", t.rate ? `${Math.round(t.rate * 64).toLocaleString()} noisy layouts/s` : ""));
+  if (t.end) k.appendChild(tile("Time left", fmtDur(t.end - Date.now() / 1000), `budget ends about ${fmtTime(t.end)}`));
+  if (S.spend) k.appendChild(tile("Spend so far", `$${S.spend.spent.toFixed(2)}`, `worst case $${S.spend.worst.toFixed(2)} of $${S.spend.cap.toFixed(0)} cap`));
+  // meters
+  if (t.start) {
+    const frac = Math.min(1, (Date.now() / 1000 - t.start) / (t.budget_hours * 3600));
+    $("tbBar").style.width = (frac * 100).toFixed(1) + "%";
+    $("tbText").textContent = ""; const b = el("b", {}, `${(frac * 100).toFixed(0)}%`); $("tbText").append(b, ` · started ${fmtTime(t.start)}, ends ~${fmtTime(t.end)}`);
+  }
+  if (S.spend) {
+    $("spBar").style.width = (Math.min(1, S.spend.spent / S.spend.cap) * 100).toFixed(1) + "%";
+    $("spText").textContent = ""; $("spText").append(el("b", {}, `$${S.spend.spent.toFixed(2)}`), ` of $${S.spend.cap.toFixed(0)}`);
+  }
+  // loss chart
+  const s1 = css("--series-1"), s2 = css("--series-2"), de = css("--deemph");
+  const series = [];
+  if (SHOW_BOTH && small) {
+    series.push({ name: "Small run · training", short: "", color: de, deemph: true, pts: small.records.map(r => [r.step, r.loss]) });
+    series.push({ name: "Small run · validation", short: "", color: de, deemph: true, dots: true, pts: small.records.filter(r => r.val_loss_ema != null).map(r => [r.step, r.val_loss_ema]) });
+  }
+  series.push({ name: "Training loss", short: "train", color: s1, pts: recs.map(r => [r.step, r.loss]) });
+  series.push({ name: "Validation loss (EMA)", short: "val", color: s2, dots: true, pts: evals.map(r => [r.step, r.val_loss_ema]) });
+  const lg = $("lossLegend"); lg.textContent = "";
+  for (const s of series.filter(x => !x.deemph).concat(SHOW_BOTH && small ? [{ name: "Small run (4k circuits, own validation set)", color: de }] : [])) {
+    const sp = el("span"); const i = el("i"); i.style.background = s.color; sp.append(i, s.name); lg.appendChild(sp);
+  }
+  lineChart($("lossPlot"), { series, annotations: full && full.resume && SHOW_BOTH ? [{ x: full.resume, label: "full run starts (39k circuits)" }] : [], height: 280 });
+  // speed chart (drop partial-interval outliers right after a resume)
+  const its = recs.map(r => r.it_s).sort((a, b) => a - b), med = its[Math.floor(its.length / 2)] || 1;
+  lineChart($("speedPlot"), { series: [{ name: "steps/s", short: "", color: s1, pts: recs.filter(r => r.it_s < 1.4 * med).map(r => [r.step, r.it_s]) }], height: 280,
+    yFmt: (v) => v.toFixed(1), endLabels: false });
+  // eval table
+  const et = $("evalTable"); et.textContent = "";
+  const hr = el("tr"); ["Step", "Training loss", "Validation loss (EMA)", "Speed"].forEach((h, i) => hr.appendChild(el("th", i ? { class: "num" } : {}, h))); et.appendChild(hr);
+  for (const r of evals.slice().reverse()) {
+    const tr = el("tr"); tr.append(el("td", {}, r.step.toLocaleString()), el("td", { class: "num" }, r.loss.toFixed(4)),
+      el("td", { class: "num" }, r.val_loss_ema.toFixed(4)), el("td", { class: "num" }, r.it_s.toFixed(2))); et.appendChild(tr);
+  }
+  // checkpoints
+  const ct = $("ckTable"); ct.textContent = "";
+  const ch = el("tr"); ["File", "Saved", "Role"].forEach(h => ch.appendChild(el("th", {}, h))); ct.appendChild(ch);
+  for (const c of (S.checkpoints || []).filter(c => c.name.endsWith(".pt")).reverse()) {
+    const tr = el("tr"); tr.append(el("td", {}, c.name), el("td", {}, fmtTime(c.time)),
+      el("td", {}, c.name === "ema_latest.pt" ? "newest model for sampling" : "full state (resume)")); ct.appendChild(tr);
+  }
+  const ev = $("events"); ev.textContent = "";
+  for (const e of (S.events || []).slice().reverse()) ev.appendChild(el("li", {}, e));
+}
+
+async function refresh() {
+  document.querySelector(".charts").classList.add("stale");
+  try { const r = await fetch("/api/state", { cache: "no-store" }); STATE = await r.json(); render(); }
+  catch (e) { $("err").style.display = "block"; $("err").textContent = `Dashboard server unreachable: ${e}`; }
+  document.querySelector(".charts").classList.remove("stale");
+}
+$("btnFull").onclick = () => { SHOW_BOTH = false; $("btnFull").setAttribute("aria-pressed", "true"); $("btnBoth").setAttribute("aria-pressed", "false"); render(); };
+$("btnBoth").onclick = () => { SHOW_BOTH = true; $("btnBoth").setAttribute("aria-pressed", "true"); $("btnFull").setAttribute("aria-pressed", "false"); render(); };
+window.addEventListener("resize", () => render());
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => render());
+refresh(); setInterval(refresh, 30000); setInterval(() => STATE && render(), 60000);
+</script>
+</body>
+</html>

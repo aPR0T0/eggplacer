@@ -1,0 +1,23 @@
+(version 1)
+# Example KiCad DRC rules: JLCPCB 2-layer FR-4, 1 oz (jlcpcb.com/capabilities/pcb-capabilities, checked 2026-11).
+# Copy and adapt to your fab and layer count; point "dru" in your board config at it.
+(rule "via drill"
+	(constraint hole_size (min 0.3mm))
+	(condition "A.Type == 'Via'"))
+(rule "via annular ring"
+	(constraint annular_width (min 0.1mm))
+	(condition "A.Type == 'Via'"))
+(rule "track width"
+	(constraint track_width (min 0.1mm)))
+(rule "copper clearance"
+	(constraint clearance (min 0.1mm)))
+(rule "hole to copper"
+	(constraint hole_clearance (min 0.2mm)))
+(rule "copper to board edge"
+	(constraint edge_clearance (min 0.2mm)))
+(rule "pad hole to hole"
+	(constraint hole_to_hole (min 0.45mm))
+	(condition "A.Type == 'Pad' && B.Type == 'Pad'"))
+(rule "via hole to hole"
+	(constraint hole_to_hole (min 0.2mm))
+	(condition "A.Type == 'Via' || B.Type == 'Via'"))
