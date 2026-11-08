@@ -24,7 +24,7 @@ PDF_URL = "https://arxiv.org/pdf/2610.33099"
 # (page, y0, y1) in PDF points, x range 100-508 pt: positions taken from `pdftotext -bbox-layout`
 PAPER = {
     "paper_eq15_training.png": [(15, 80, 121)],
-    "paper_eq3_6_8_guided_ddim.png": [(4, 384.6, 432), (5, 80, 254)],
+    "paper_eq3_6_8_guided_ddim.png": [(4, 386.5, 432), (5, 80, 254)],
     "paper_eq4_21_22_weights.png": [(4, 507, 566), (16, 80, 229)],
     "paper_eq18_wawl.png": [(15, 371, 487)],
     "paper_eq20_overlap.png": [(15, 671, 735)],
