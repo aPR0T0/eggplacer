@@ -114,8 +114,10 @@ class Problem:
     def from_json(path) -> "Problem":
         d = json.loads(Path(path).read_text())
         parts = [Part(**p) for p in d["parts"]]
-        return Problem(name=d["name"], parts=parts, nets=d["nets"], layers=d["layers"],
-                       rules=d.get("rules", {}), src_outline=d.get("src_outline", []))
+        pr = Problem(name=d["name"], parts=parts, nets=d["nets"], layers=d["layers"],
+                     rules=d.get("rules", {}), src_outline=d.get("src_outline", []))
+        pr.source = Path(path).resolve()   # lets relative board / DRU paths resolve after a re-clone
+        return pr
 
     def index(self, ref):
         for i, p in enumerate(self.parts):

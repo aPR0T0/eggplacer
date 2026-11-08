@@ -143,6 +143,42 @@ A size passes only when some seed legalizes, routes 100% and has 0 DRC errors. R
 `export_placement.py <its placement.npz> --W .. --H .. --name myboard_eggplacer`. Its routed version
 is next to it under `<copy>/runs/…/routed.kicad_pcb`.
 
+
+## Using eggplacer as a git submodule (recommended for a board project)
+
+Keep this repo generic and put everything board-specific in your own repository, next to it:
+
+```
+myproject/
+  eggplacer/              git submodule -> github.com/aPR0T0/eggplacer
+  myboard/                copy of your KiCad project (outputs are written here under new names)
+  eggplacer_myboard/      your files, committed in YOUR repo
+    configs/myboard.json  "board": "../../myboard/myboard.kicad_pcb", "dru": "myboard_2layer.kicad_dru"
+    configs/myboard_2layer.kicad_dru
+    gcp.env               export PROJECT=... REGION=... ZONE=... BUCKET=gs://... EGG_LEDGER=$PWD/eggplacer_myboard/logs/gcp_ledger.json
+    out/ logs/ reports/   problem.json, results, cost ledger, notes
+```
+
+From `myproject/`:
+```bash
+git submodule add https://github.com/aPR0T0/eggplacer eggplacer     # once; others: git clone --recursive
+(cd eggplacer && bash scripts/fetch_chipdiffusion.sh)
+P=eggplacer_myboard/out/problem.json
+python eggplacer/scripts/board_stats.py eggplacer_myboard/configs/myboard.json eggplacer_myboard/out
+EGG_PROBLEM=$P python eggplacer/tests/test_energy.py
+python eggplacer/scripts/plot_footprints.py $P J1,J2 eggplacer_myboard/out/footprints.png
+python eggplacer/scripts/run_sa.py --problem $P --W 60 --H 60 --out eggplacer_myboard/out/sa_60 [--route]
+python eggplacer/scripts/export_placement.py eggplacer_myboard/out/sa_60/placement.npz --problem $P --W 60 --H 60 --name myboard_sa_60x60
+PYTHONPATH=eggplacer python -m eggpcb.datagen --problem $P --cfg eggplacer_myboard/configs/myboard.json --out /tmp/data --n 48
+source eggplacer_myboard/gcp.env && bash eggplacer/gcp/push_code.sh $P        # bundle code + YOUR problem for the VMs
+eggplacer/gcp/launch.sh egg-gpu-train g2-standard-8 gpu 8 'FULL=v1_5k,v1_20k_a HOURS=6 bash gcp/gpu_job.sh'
+python eggplacer/dashboard/server.py --bucket $BUCKET --ledger $EGG_LEDGER         # live training dashboard
+python eggplacer/scripts/eval_model.py --problem $P --ckpt /tmp/ema.pt --data /tmp/heldout --out eggplacer_myboard/out/eval
+```
+`problem.json` stores the board and DRU paths both absolutely and relative to itself, so the project
+keeps working after a fresh clone. Update the code with
+`git submodule update --remote eggplacer` and commit the new submodule pointer.
+
 ---
 
 ## Known limits (from our test board)

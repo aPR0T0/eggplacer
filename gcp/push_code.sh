@@ -1,8 +1,16 @@
 #!/bin/bash
-# bundle the code + parsed board problem and upload to GCS
+# Bundle the code + a parsed board problem and upload to GCS.
+# usage: gcp/push_code.sh [path/to/problem.json]   (default: out/problem.json inside this repo)
 set -e
 source "$(dirname "$0")/env.sh"
 cd "$(dirname "$0")/.."
-tar czf /tmp/eggplacer.tgz --exclude='out/*.png' --exclude='out/sa_*' --exclude='logs' --exclude='__pycache__' \
-    --transform 's,^\.,eggplacer,' ./eggpcb ./configs ./scripts ./third_party ./gcp ./out/problem.json ./tests
+PROBLEM=${1:-out/problem.json}
+STAGE=$(mktemp -d)
+mkdir -p "$STAGE/eggplacer/out"
+cp -r eggpcb configs scripts gcp tests "$STAGE/eggplacer/"
+[ -d third_party ] && cp -r third_party "$STAGE/eggplacer/"
+cp "$PROBLEM" "$STAGE/eggplacer/out/problem.json"
+find "$STAGE" -name __pycache__ -prune -exec rm -rf {} +
+tar czf /tmp/eggplacer.tgz -C "$STAGE" eggplacer
+rm -rf "$STAGE"
 gcloud storage cp /tmp/eggplacer.tgz $BUCKET/code/eggplacer.tgz

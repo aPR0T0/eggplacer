@@ -206,8 +206,6 @@ MM = 1e6
 b = pcbnew.LoadBoard(%(src)r)
 net = b.FindNet(%(net)r)
 bb = b.GetBoardEdgesBoundingBox()
-outline = pcbnew.SHAPE_POLY_SET()
-b.GetBoardPolygonOutlines(outline)
 zones = []
 for L in (pcbnew.F_Cu, pcbnew.B_Cu):
     z = pcbnew.ZONE(b); z.SetLayer(L); z.SetNet(net)

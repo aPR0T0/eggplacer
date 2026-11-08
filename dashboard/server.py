@@ -160,7 +160,14 @@ def main():
     ap.add_argument("--port", type=int, default=8765); ap.add_argument("--vm", default="egg-gpu-train")
     ap.add_argument("--run", default="full"); ap.add_argument("--budget-hours", type=float, default=6.0)
     ap.add_argument("--interval", type=int, default=60)
+    ap.add_argument("--bucket", default=None, help="gs://... (default: $BUCKET)")
+    ap.add_argument("--ledger", default=None, help="cost ledger json (default: $EGG_LEDGER or gcp/../logs)")
     a = ap.parse_args()
+    global BUCKET
+    if a.bucket:
+        BUCKET = a.bucket
+    if a.ledger:
+        ledger.LEDGER = Path(a.ledger)
     poll(a)
     threading.Thread(target=poller, args=(a,), daemon=True).start()
     print(f"dashboard on http://127.0.0.1:{a.port}", flush=True)

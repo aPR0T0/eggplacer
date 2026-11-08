@@ -24,6 +24,11 @@ def main(cfg_path, out_dir):
     pr.rules["config_abs"] = str(Path(cfg_path).resolve())
     if cfg.get("dru"):
         pr.rules["dru_abs"] = str((Path(cfg_path).parent / cfg["dru"]).resolve())
+    # relative to problem.json too, so a project still works when cloned somewhere else
+    import os
+    pr.rules["board_rel"] = os.path.relpath(board, out.resolve())
+    if cfg.get("dru"):
+        pr.rules["dru_rel"] = os.path.relpath(pr.rules["dru_abs"], out.resolve())
     pr.to_json(out / "problem.json")
 
     S = {}

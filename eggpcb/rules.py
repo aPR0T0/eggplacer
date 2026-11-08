@@ -108,8 +108,15 @@ def gnd_net(pr: Problem) -> str:
 def board_paths(pr: Problem):
     """(source .kicad_pcb, DRU text or None, runs directory) recorded by scripts/board_stats.py."""
     from pathlib import Path
-    src = Path(pr.rules["board_abs"])
-    dru = Path(pr.rules["dru_abs"]).read_text() if pr.rules.get("dru_abs") else None
+
+    def resolve(key_abs, key_rel):
+        p = Path(pr.rules[key_abs]) if pr.rules.get(key_abs) else None
+        if (p is None or not p.exists()) and pr.rules.get(key_rel) and getattr(pr, "source", None):
+            p = (pr.source.parent / pr.rules[key_rel]).resolve()
+        return p
+    src = resolve("board_abs", "board_rel")
+    dru_p = resolve("dru_abs", "dru_rel")
+    dru = dru_p.read_text() if dru_p and dru_p.exists() else None
     return src, dru, src.parent / "runs"
 
 

@@ -48,7 +48,9 @@ python scripts/demo.py --ckpt ema_latest.pt   # + unguided and energy-guided dif
 
 To place your own KiCad board (copy the project, write a rules config, parse, check footprints,
 SA baseline, synthetic data, training on GCP, guided sampling, size search), follow
-**[GUIDE.md](GUIDE.md)**. It has the exact commands for every step.
+**[GUIDE.md](GUIDE.md)**. It has the exact commands for every step. For a board project, include
+this repo as a **git submodule** and keep your config and results in your own repository
+([GUIDE: submodule layout](GUIDE.md#using-eggplacer-as-a-git-submodule-recommended-for-a-board-project)).
 
 ---
 

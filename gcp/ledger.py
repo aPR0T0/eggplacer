@@ -17,7 +17,7 @@ CAP = float(os.environ.get("EGG_BUDGET_USD", "100"))
 RATES = {"g2-standard-4": 0.95, "g2-standard-8": 1.15, "g2-standard-16": 1.6,
          "n2d-highcpu-32": 1.15, "n2d-highcpu-48": 1.7, "n2d-highcpu-64": 2.25, "n2d-highcpu-96": 3.35,
          "c2d-highcpu-56": 2.7, "c2d-highcpu-112": 5.4, "e2-standard-4": 0.17}
-LEDGER = Path(__file__).resolve().parents[1] / "logs" / "gcp_ledger.json"
+LEDGER = Path(os.environ.get("EGG_LEDGER", Path(__file__).resolve().parents[1] / "logs" / "gcp_ledger.json"))
 
 
 def load():

@@ -12,7 +12,8 @@ from eggpcb.layout import apply_constraints  # noqa: E402
 from eggpcb.sa import SAArrays, energy_terms_np, TERM_NAMES  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
-PROB = ROOT / "out" / "problem.json"
+import os
+PROB = Path(os.environ.get("EGG_PROBLEM", ROOT / "out" / "problem.json"))
 
 
 def load_problem():
