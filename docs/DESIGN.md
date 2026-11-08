@@ -86,6 +86,12 @@ leaves open. Equation numbers refer to arXiv:2610.33099.
 - **Netclass overrides** in the config apply only to the routing copy. A wide power class that
   can't physically reach fine-pitch pins makes 100% completion impossible.
 
+## Known limitation: greedy legalization at high density
+The legalizer (paper Sec. 3.3: largest parts first, nearest feasible grid point) can fail when free
+space is fragmented. On boards above roughly 70% keep-out-box density, a large IC may find no hole
+even though the total free area is enough. A size that fails to legalize counts as failing in the
+size search.
+
 ## Size search (`eggpcb/size_search.py`)
 - Log-area bisection per (method, aspect ratio).
 - A size passes only if some seed legalizes, routes 100% and has 0 DRC errors.

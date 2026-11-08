@@ -27,6 +27,9 @@ def main():
     ap.add_argument("--seed", type=int, default=0); ap.add_argument("--ckpt", default="")
     ap.add_argument("--out", default="out/demo"); ap.add_argument("--parts", type=float, default=0.6,
                                                                   help="circuit size as a fraction of 200 parts")
+    ap.add_argument("--density", type=float, default=0.6,
+                    help="max keep-out-box density of the demo outline (the generator's own outlines are 0.55-0.80; "
+                         "the greedy legalizer struggles above ~0.7)")
     a = ap.parse_args()
     out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
     cfg = load_cfg(ROOT / "configs" / "example_board.json")
@@ -36,10 +39,16 @@ def main():
         r = generate(rng, generic_library(), cfg, n_scale=(a.parts, a.parts))
     pr, c_label, k, s, ol, ea = r
     ctx = Ctx(pr)
+    dens = sum(p.w * p.h for p in pr.parts) / (ol.W * ol.H)
     H = lambda c, k_, s_: float(hpwl(ctx, torch.tensor(c), torch.tensor(k_), torch.tensor(s_)))
     print(f"circuit: {len(pr.parts)} parts, {len(pr.nets)} nets, outline {ol.W:.1f} x {ol.H:.1f} mm")
-    rows = {"generator's latent packing": dict(hpwl=H(c_label, k, s), legal=True)}
-    render(pr, c_label, k, s, outline=ol.as_dict(), path=out / "latent.png", title="latent packing")
+    rows = {f"generator's packing (outline {ol.W:.1f} x {ol.H:.1f} mm)": dict(hpwl=H(c_label, k, s), legal=True)}
+    render(pr, c_label, k, s, outline=ol.as_dict(), path=out / "latent.png", title="generator's packing")
+    if dens > a.density:  # give the placers some slack
+        from eggpcb.energies import Outline
+        f = (dens / a.density) ** 0.5
+        ol = Outline(ol.W * f, ol.H * f, ol.r, ol.edge)
+        print(f"demo outline enlarged to {ol.W:.1f} x {ol.H:.1f} mm (box density {dens:.2f} -> {a.density:.2f})")
 
     t0 = time.time()
     c, k2, s2, ea2, _ = run_sa(ctx, ol, seed=a.seed, n_temps=120, moves_per_part=20, verbose=False)

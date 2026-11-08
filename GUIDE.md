@@ -150,6 +150,8 @@ is next to it under `<copy>/runs/…/routed.kicad_pcb`.
   (68% vs 47% on the same 58 × 58 board) but not 100%. The `gnd: pour` mode (GND poured and
   stitched after routing) is new and under test.
 - Don't pour copper before routing: Freerouting treats zones as obstacles for every other net.
+- The greedy legalizer can fail above roughly 70% keep-out-box density, because a large part finds
+  no hole in fragmented free space (docs/DESIGN.md).
 - Freerouting doesn't know DRU-only rules. NPTH hole clearance and edge clearance are patched into
   the DSN automatically (`inflate_npth`, `shrink_boundary`); other DRU-only rules aren't.
 - Rotation, side and edge choice during guided sampling come from a discrete local search, not the
