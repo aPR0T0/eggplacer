@@ -2,7 +2,7 @@
 
 For each method (sa | unguided | guided) and aspect ratio, bisect the board area between --lo and
 --hi (log scale). A candidate size passes if at least one seed's placement legalizes, routes 100%
-with Freerouting at the user's layer count and has 0 DRC errors. Every (method, aspect, area, seed)
+with the board config's router (pcb_router) at the user's layer count and has 0 DRC errors. Every (method, aspect, area, seed)
 attempt is appended to results.jsonl (resumable, mirrored to GCS); jobs run in a process pool.
 
 usage: python -m eggpcb.size_search --methods sa,guided --aspects 1,1.3,0.77 --seeds 3 \
@@ -38,8 +38,7 @@ def attempt(job):
     from .energies import Ctx, Outline, hpwl, legality_report
     from .kicad_io import Problem
     from .legalize import legalize
-    from .route import route_board
-    from .rules import board_paths, gnd_net, routing_cfg
+    from .rules import board_paths, route_placed
     t0 = time.time()
     method, W, H, seed, out = job["method"], job["W"], job["H"], job["seed"], Path(job["out"])
     out.mkdir(parents=True, exist_ok=True)
@@ -47,7 +46,6 @@ def attempt(job):
     try:
         pr = Problem.from_json(job["problem"])
         src_board, dru, runs_dir = board_paths(pr)
-        rcfg = routing_cfg(pr)
         ol = Outline(W, H, pr.rules["outline"]["corner_radius"], pr.rules["clearance"]["edge"])
         ctx = Ctx(pr)
         if method == "sa":
@@ -74,12 +72,10 @@ def attempt(job):
         pcb = runs_dir / out.parents[2].name / out.relative_to(out.parents[2]) / "placed.kicad_pcb"
         wb = write_board(pr, c2, k2, s2, ol, src_board, pcb, dru_text=dru)
         res["board"] = wb
-        rr = route_board(pcb, pcb.with_name("routed.kicad_pcb"), gnd=job.get("gnd") or rcfg["gnd"],
-                         timeout=job.get("route_timeout") or rcfg["timeout"], router=rcfg["router"],
-                         netclass=rcfg["netclass_overrides"], gnd_net=gnd_net(pr))
-        res["route"] = {k: rr.get(k) for k in ("completion", "ok", "vias", "track_mm", "unrouted_baseline", "error")}
+        rr = route_placed(pr, pcb, pcb.with_name("routed.kicad_pcb"), timeout=job.get("route_timeout"),
+                          gnd=job.get("gnd"))
+        res["route"] = {k: rr.get(k) for k in ("completion", "ok", "vias", "track_mm", "unrouted_baseline", "router")}
         res["route"]["drc"] = rr.get("drc")
-        res["route"]["fr_passes"] = rr.get("freerouting", {}).get("passes")
         res["completion"] = rr.get("completion", 0.0)
         res["passed"] = bool(rr.get("ok"))
     except Exception as e:  # keep the search going; record the failure

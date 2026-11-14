@@ -1,5 +1,5 @@
 """SA baseline on the real board at one outline size: SA -> legalize -> exact legality check ->
-render -> new .kicad_pcb (+ DRC) -> optional Freerouting.
+render -> new .kicad_pcb (+ DRC) -> optional routing (pcb_router).
 
 usage: python scripts/run_sa.py --W 58 --H 58 --seed 0 --out out/sa_58x58_s0 [--route --gnd plane_b]
 """
@@ -19,7 +19,7 @@ from eggpcb.energies import Ctx, Outline, hpwl, legality_report  # noqa: E402
 from eggpcb.kicad_io import Problem  # noqa: E402
 from eggpcb.legalize import legalize  # noqa: E402
 from eggpcb.render import render  # noqa: E402
-from eggpcb.rules import board_paths, gnd_net, routing_cfg  # noqa: E402
+from eggpcb.rules import board_paths, route_placed  # noqa: E402
 from eggpcb.sa import SAArrays, TERM_NAMES, energy_terms_np, run_sa  # noqa: E402
 
 
@@ -37,7 +37,6 @@ def main():
     out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
     pr = Problem.from_json(a.problem)
     src_board, dru, runs_dir = board_paths(pr)
-    rcfg = routing_cfg(pr)
     ctx = Ctx(pr)
     ol = Outline(a.W, a.H, pr.rules["outline"]["corner_radius"], pr.rules["clearance"]["edge"])
     t0 = time.time()
@@ -63,10 +62,8 @@ def main():
         res["board"] = wb
         res["drc_placed"] = run_drc(pcb)
         if a.route:
-            from eggpcb.route import route_board
-            res["route"] = route_board(pcb, pcb.with_name("routed.kicad_pcb"), gnd=a.gnd or rcfg["gnd"],
-                                       timeout=a.route_timeout or rcfg["timeout"], router=rcfg["router"],
-                                       netclass=rcfg["netclass_overrides"], gnd_net=gnd_net(pr))
+            res["route"] = route_placed(pr, pcb, pcb.with_name("routed.kicad_pcb"), timeout=a.route_timeout,
+                                        gnd=a.gnd)
     (out / "result.json").write_text(json.dumps(res, indent=1, default=str))
     print(json.dumps({k: v for k, v in res.items() if k not in ("terms",)}, indent=1, default=str))
 

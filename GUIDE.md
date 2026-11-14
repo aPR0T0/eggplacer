@@ -12,19 +12,16 @@ reach 100% completion yet; see "Known limits".
 
 ## 0. One-time setup
 ```bash
-# Python (system site packages so KiCad's pcbnew module is importable)
-python3 -m venv --system-site-packages .venv && source .venv/bin/activate
-pip install --index-url https://download.pytorch.org/whl/cpu torch      # or a CUDA build for training
-pip install -r requirements.txt
-bash scripts/fetch_chipdiffusion.sh        # denoiser backbone (fetched from upstream, not redistributed)
-# Routers, no root needed: Java 25 (Freerouting 2.5 needs it), Freerouting 2.5.0 + 1.9.0, a private Xvfb
-mkdir -p ~/tools/jdk ~/tools/xvfb
-#   Zulu JDK 25 tarball -> ~/tools/jdk (api.azul.com), freerouting-2.5.0.jar -> ~/tools/fr.jar,
-#   freerouting-1.9.0.jar -> ~/tools/fr19.jar (GitHub release assets)
-(cd ~/tools/xvfb && apt-get download xvfb && dpkg -x xvfb_*.deb root)
-gcloud auth login            # only needed for GCP training
+uv venv --python /usr/bin/python3 && uv sync     # KiCad's pcbnew is built for the system Python
+source .venv/bin/activate                         # the commands below assume the venv is active
+bash scripts/fetch_chipdiffusion.sh              # denoiser backbone (fetched from upstream, not redistributed)
+# CPU torch by default; for training install a CUDA build: uv pip install torch --index-url https://download.pytorch.org/whl/cu124
+gcloud auth login                                 # only needed for GCP training
 ```
-Override locations with `EGG_JAVA`, `EGG_FREEROUTING`, `EGG_FREEROUTING19`, `EGG_XVFB`.
+Routing (step 8 `--route`, step 12) goes through [pcb_router](https://github.com/aPR0T0/pcb_router)
+(install it into this venv: `uv pip install -e ../pcb_router`, or use
+[pcb_design_pipeline](https://github.com/aPR0T0/pcb_design_pipeline), which has both). Its default
+router, fastroute, downloads itself; Freerouting needs Java and the jars (see pcb_router).
 
 ## 1. Work on a copy of the KiCad project
 ```bash
@@ -53,7 +50,7 @@ Start from `configs/example_board.json` and save it as `configs/myboard.json`. E
 | `decoupling` | `cap_kind`, `ic_kinds`, `gnd_nets` (**first entry = your ground net name**) |
 | `net_weights` | `gnd_weight`, `power_nets`, `power_weight`, `fanout_cap` |
 | `dru` | KiCad DRC rules file for the output board (fab limits for your layer count), relative to the config |
-| `routing` | `router` (`1.9` recommended), `gnd` (`track` or `pour`), `timeout` (s), `netclass_overrides` (step 6) |
+| `routing` | `router` (a pcb_router name: `fastroute` (default) or `freerouting`), `options` (that router's options), `ground_pour` (`{net: GND}` or null). Old values `router: "1.9"`/`"2.5"` with `gnd`, `timeout`, `netclass_overrides` still map to `freerouting` |
 
 ## 4. Parse the board, get statistics and the area lower bound
 ```bash
@@ -144,13 +141,13 @@ A size passes only when some seed legalizes, routes 100% and has 0 DRC errors. R
 is next to it under `<copy>/runs/…/routed.kicad_pcb`.
 
 
-## Using eggplacer as a git submodule (recommended for a board project)
+## Using pcb_component_placer as a git submodule (recommended for a board project)
 
 Keep this repo generic and put everything board-specific in your own repository, next to it:
 
 ```
 myproject/
-  eggplacer/              git submodule -> github.com/aPR0T0/eggplacer
+  eggplacer/              git submodule -> github.com/aPR0T0/pcb_component_placer
   myboard/                copy of your KiCad project (outputs are written here under new names)
   eggplacer_myboard/      your files, committed in YOUR repo
     configs/myboard.json  "board": "../../myboard/myboard.kicad_pcb", "dru": "myboard_2layer.kicad_dru"
@@ -161,7 +158,7 @@ myproject/
 
 From `myproject/`:
 ```bash
-git submodule add https://github.com/aPR0T0/eggplacer eggplacer     # once; others: git clone --recursive
+git submodule add https://github.com/aPR0T0/pcb_component_placer eggplacer     # once; others: git clone --recursive
 (cd eggplacer && bash scripts/fetch_chipdiffusion.sh)
 P=eggplacer_myboard/out/problem.json
 python eggplacer/scripts/board_stats.py eggplacer_myboard/configs/myboard.json eggplacer_myboard/out

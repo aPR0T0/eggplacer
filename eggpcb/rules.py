@@ -121,6 +121,34 @@ def board_paths(pr: Problem):
 
 
 def routing_cfg(pr: Problem) -> dict:
-    r = dict(router="1.9", gnd="pour", timeout=2700, netclass_overrides={})
-    r.update(pr.rules.get("routing", {}))
-    return r
+    """Routing settings of the board config: {router, options, ground_pour}. Routers live in the
+    pcb_router package. Old configs ({router: "1.9"|"2.5", gnd, timeout, netclass_overrides}) map
+    to its `freerouting` router."""
+    r = dict(pr.rules.get("routing", {}))
+    if str(r.get("router", "fastroute")) in ("1.9", "2.5"):
+        opts = dict(version=str(r["router"]), gnd=r.get("gnd", "track"), timeout=r.get("timeout", 900),
+                    netclass_overrides=r.get("netclass_overrides", {}), gnd_net=gnd_net(pr))
+        return dict(router="freerouting", options=opts, ground_pour=None)
+    return dict(router=r.get("router", "fastroute"), options=r.get("options", {}),
+                ground_pour=r.get("ground_pour"))
+
+
+def route_placed(pr: Problem, placed_pcb, out_pcb, timeout=None, gnd=None) -> dict:
+    """Route a placed board with pcb_router (install it next to this package, e.g. through
+    pcb_design_pipeline) and return {ok, completion, vias, track_mm, drc, unrouted_baseline}."""
+    try:
+        from pcb_router import route
+        from pcb_router.kicad import run_drc
+    except ImportError as e:
+        raise ImportError("routing needs the pcb_router package (github.com/aPR0T0/pcb_router)") from e
+    rc = routing_cfg(pr)
+    opts = dict(rc["options"])
+    if timeout:
+        opts["timeout" if rc["router"] == "freerouting" else "max_time"] = timeout
+    if gnd and rc["router"] == "freerouting":
+        opts["gnd"] = gnd
+    base = run_drc(placed_pcb, refill=True)["unconnected"]
+    r = route(placed_pcb, out_pcb, algorithm=rc["router"], options=opts, ground_pour=rc["ground_pour"])
+    return dict(ok=r.ok, completion=1.0 - (r.unrouted or 0) / max(1, base), vias=r.vias,
+                track_mm=r.track_length_mm, drc=r.drc, unrouted_baseline=base, router=rc["router"],
+                details={k: v for k, v in r.details.items() if k != "report"})
