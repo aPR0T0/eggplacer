@@ -38,6 +38,8 @@ print(res.ok, res.outline_mm, res.outside, res.placement_errors)
    - put scratch files in `work_dir`;
    - return details for the report.
    - Get `pcbnew` with `import_pcbnew()`.
+   - If your placer loads and saves boards with pcbnew in-process, set `isolate = True` on the
+     class. pcbnew can't reliably load boards again after saving one in the same process.
 5. Don't check your own result. `Placer.run()` does that the same way for every placer: closed
    outline, every pad on the board, no courtyard-overlap DRC errors. It writes `<board>.place.json`.
 

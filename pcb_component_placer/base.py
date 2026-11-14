@@ -85,12 +85,15 @@ class PlaceResult:
 class Placer:
     name: str = ""
     summary: str = ""
+    # run place() in a child process: set for placers that load and save boards with pcbnew in-process
+    isolate: bool = False
 
     @dataclass
     class Options:
         pass
 
     def __init__(self, options: dict | None = None):
+        self.options = dict(options or {})
         self.opts = parse_options(self.Options, options)
 
     # ---- implement this -------------------------------------------------------------------
@@ -112,7 +115,13 @@ class Placer:
         board_out.parent.mkdir(parents=True, exist_ok=True)
         kicad.copy_sidecars(board_in, board_out)
         t0 = time.time()
-        details = self.place(board_in, board_out, work_dir) or {}
+        if self.isolate:
+            job = work_dir / f"{self.name}_job.json"
+            job.write_text(json.dumps(dict(algorithm=self.name, options=self.options, board_in=str(board_in),
+                                           board_out=str(board_out), work_dir=str(work_dir)), default=str))
+            details = kicad.run_module("pcb_component_placer._child", job, timeout=24 * 3600)
+        else:
+            details = self.place(board_in, board_out, work_dir) or {}
         seconds = time.time() - t0
         if not board_out.exists():
             raise RuntimeError(f"placer {self.name!r} did not write {board_out}")

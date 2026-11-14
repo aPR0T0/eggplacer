@@ -52,6 +52,7 @@ def _is_power(name: str) -> bool:
 @register("eggplacer")
 class EggPlacer(Placer):
     summary = "EGGPlacer: energy-guided placement (simulated annealing, or diffusion with a trained checkpoint)"
+    isolate = True
 
     @dataclass
     class Options:
